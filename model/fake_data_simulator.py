@@ -36,7 +36,7 @@ def fake_data_simulator(df_measurements):
 
 
 if __name__ == "__main__":
-
+    ## EXAMPLE
     import matplotlib.pyplot as plt
 
     # Create a sample DataFrame with random species, height, and diameter
