@@ -72,3 +72,60 @@ class BRAMBLE:
         # Call predict_single_species for batch processing
         return self.predict_single_species(X, betas_species, beta0_species, apply_exp_transform=apply_exp_transform)
 
+
+if __name__ == "__main__":
+    ## EXAMPLE
+    import matplotlib.pyplot as plt
+
+    # Define parameters for the BRAMBLE model
+    params = {
+        'betas': np.array([[0.1, 0.05], [0.15, 0.03], [0.2, 0.1]]),  # coefficients for 3 species and 2 features
+        'beta0': np.array([1.0, 1.2, 1.5])  # intercepts for each species
+    }
+
+    # Initialize the BRAMBLE model with the parameters
+    bramble_model = BRAMBLE(params)
+
+    # Example input data: 10 samples, 2 features (e.g., height and diameter), with species indices
+    X = np.random.rand(10, 2) * [100, 50]  # Random data for features
+    species_idx = np.random.choice([0, 1, 2], size=10)  # Random species assignments for each sample
+
+    # Make predictions
+    predictions = bramble_model.predict_multi_species(X, species_idx)
+
+    # Define species colors for the scatter plot
+    species_colors = {0: 'blue', 1: 'green', 2: 'purple'}
+    species_labels = {0: 'Species 0', 1: 'Species 1', 2: 'Species 2'}
+
+    # Plotting each feature against biomass, colored by species
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
+
+    for species in np.unique(species_idx):
+        # Scatter plot for Feature 1 vs Biomass for each species
+        axs[0].scatter(
+            X[species_idx == species, 0], predictions[species_idx == species], 
+            label=species_labels[species], color=species_colors[species], alpha=0.7, edgecolor='k'
+        )
+        axs[0].set_xlabel("Feature 1 (e.g., Diameter)")
+        axs[0].set_ylabel("Predicted Biomass")
+        axs[0].set_title("Feature 1 vs Predicted Biomass")
+        axs[0].set_yscale("log")
+        axs[0].grid(True)
+
+        # Scatter plot for Feature 2 vs Biomass for each species
+        axs[1].scatter(
+            X[species_idx == species, 1], predictions[species_idx == species], 
+            label=species_labels[species], color=species_colors[species], alpha=0.7, edgecolor='k'
+        )
+        axs[1].set_xlabel("Feature 2 (e.g., Height)")
+        axs[1].set_title("Feature 2 vs Predicted Biomass")
+        axs[1].set_yscale("log")
+        axs[1].grid(True)
+
+    # Adding legend to both subplots
+    axs[0].legend(title="Species")
+    axs[1].legend(title="Species")
+
+    # Adjust layout for better spacing
+    plt.tight_layout()
+    plt.show()
