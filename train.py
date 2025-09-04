@@ -25,7 +25,7 @@ def MaxEnt(Y, fx):
 
 
 
-def train_pymc(df, varnames = ['height', 'diameter'], catogory = 'species'):
+def train_pymc(df, Y_varnameX_varnames = ['height', 'diameter'], catogory = 'species'):
     # Define the number of predictor variables
     X = df[varnames].values/100.0  # Predictor variables (height and diameter)
     species = df[catogory].values       # Species labels
@@ -33,8 +33,8 @@ def train_pymc(df, varnames = ['height', 'diameter'], catogory = 'species'):
     nvars = X.shape[1]
 
     # Map each species name to a unique index for model use
-    unique_species = species.unique()
-    species_idx = df['species'].apply(lambda x: np.where(unique_species == x)[0][0]).values
+    unique_species = df[catogory].unique()
+    species_idx = species.apply(lambda x: np.where(unique_species == x)[0][0]).values
     biomass_threshold = df['Y_fake'].max()*2
     # In the PyMC model
     with pm.Model() as max_ent_model:
@@ -73,6 +73,8 @@ def train_pymc(df, varnames = ['height', 'diameter'], catogory = 'species'):
     return trace
 
 if __name__ == "__main__":
+
+    
     file = 'data/SH_allometry_2023.csv'
     df_measurements = pd.read_csv(file)
     df_measurements['height'] = df_measurements[['h1', 'h2', 'h3']].mean(axis=1)
