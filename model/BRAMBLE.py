@@ -18,6 +18,28 @@ class BRAMBLE:
         
         self.params = params
 
+    def biomass(self, heights, widths, footprints,  
+                    betas_heights, betas_widths, betas_footprints, beta0, 
+                    *args, **kw):
+
+        set_trace()
+        return self.carbon_biomass(C, wet_biomass, dry_biomass, 
+                             beta_C, beta_wet_biomass, beta_dry_biomass, beta0, *args, **kw)
+ 
+    def Nitrogen_biomass(self, C, wet_biomass, dry_biomass, 
+                             beta_C, beta_wet_biomass, beta_dry_biomass, beta0, *args, **kw):
+        return self.carbon_biomass(C, wet_biomass, dry_biomass, 
+                             beta_C, beta_wet_biomass, beta_dry_biomass, beta0, *args, **kw)
+
+    
+    def carbon_biomass(self, N, wet_biomass, dry_biomass, 
+                             beta_N, beta_wet_biomass, beta_dry_biomass, beta0, *args, **kw):
+        set_trace()
+        X =  np.hstack(N, wet_biomass, dry_bionass)
+        betas = np.hstack(beta_N, beta_wet_biomass, beta_dry_biomass)
+        return self.predict_multi_species(X, betas, beta0, *args, **kw)
+
+
     def predict_single_species(self, X, betas, beta0, apply_exp_transform = True):
         """
         Predict biomass for a batch of inputs (e.g., for multiple samples or species).
@@ -43,7 +65,7 @@ class BRAMBLE:
             pred = self.numPCK.exp(pred)
         return pred
     
-    def predict_multi_species(self, X, species_idx, apply_exp_transform=True):
+    def predict_multi_species(self, X, species_idx = None, apply_exp_transform=True):
         """
         Predict biomass for multiple species using species-specific parameters.
         
@@ -62,12 +84,17 @@ class BRAMBLE:
             Predictions for each row in X.
         """
         # Gather species-specific parameters based on indices
+         
         if isinstance(self.params['betas'], dict):
+            if species_idx is None: set_trace()
             betas_species = np.array([self.params['betas'][id] for id in species_idx])
             beta0_species = np.array([self.params['beta0'][id] for id in species_idx])
         else:
             betas_species = self.params['betas'][species_idx]
-            beta0_species = self.params['beta0'][species_idx]
+            beta0_species = self.params['beta0']
+            if species_idx is not None: :
+                betas_species = betas_species[species_idx]
+                beta0_species = beta0_species[species_idx]
             
         # Call predict_single_species for batch processing
         return self.predict_single_species(X, betas_species, beta0_species, apply_exp_transform=apply_exp_transform)
