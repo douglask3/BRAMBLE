@@ -21,7 +21,7 @@ Notes
   replace them with more complex ecophysiological models.
 
 """
-
+from pdb import set_trace
 import numpy as np
 import numbers
 from typing import Optional, Dict, Any
@@ -64,7 +64,7 @@ class BRAMBLE:
         # Default parameters (physically plausible defaults; override with params)
         defaults = {
             # density model: density (kg / m3) = rho0 + rho_rings * rings + rho_stems * stems
-            'rho0': 300.0,  # base wood density (kg/m3)
+            'rho0': 30.0,  # base wood density (kg/m3)
             'rho_rings': 2.0,  # per ring increment
             'rho_stems': 20.0,  # per additional stem increment
 
@@ -305,87 +305,87 @@ class BRAMBLE:
             return out['carbon_mass']
         return out
 
-    # ------------------------ PyMC model builder --------------------------
-    def build_pymc_model(self, data: Dict[str, Any], group_key: Optional[str] = None):
-        """Construct a PyMC model that mirrors the forward chain.
-
-        data: dictionary of numpy arrays (heights, widths, rings, stems, footprints, wet_biomass, dry_biomass, nitrogen_mass, carbon_mass)
-        group_key: optional string naming a grouping variable in `data` for hierarchical coefficients.
-
-        Returns a pymc.Model that you can sample from.
-        """
+    def build_pymc_model(self, data: Dict[str, Any], group_key: Optional[str] = None, fixed_params: Optional[Dict[str, Any]] = None):
+        """PyMC model with constrained densities and truncated carbon likelihood."""
+    
         if not self.inference:
             raise RuntimeError("build_pymc_model requires BRAMBLE(..., inference=True)")
         if pm is None:
             raise ImportError("pymc is required to build a probabilistic model")
-
-        # Unpack data safely
-        H = data.get('heights', None)
-        W = data.get('widths', None)
-        rings = data.get('rings', None)
-        stems = data.get('stems', None)
-        footprints = data.get('footprints', None)
-        observed_C = data.get('carbon_mass', None)
-
+    
+        fixed_params = fixed_params or {}
+        C_arr = np.asarray(data['carbon_mass']) if 'carbon_mass' in data else None
+        if C_arr is None:
+            raise ValueError('Observed carbon (carbon_mass) must be provided (np.nan allowed).')
+        n = len(C_arr)
+    
+        H_arr = np.asarray(data.get('heights', np.full(n, np.nan)))
+        W_arr = np.asarray(data.get('widths', np.full(n, np.nan)))
+        rings_arr = np.asarray(data.get('rings', np.full(n, np.nan)))
+        stems_arr = np.asarray(data.get('stems', np.full(n, np.nan)))
+        footprints_arr = np.asarray(data.get('footprints', np.full(n, np.nan)))
+    
         with pm.Model() as model:
-            # hyperpriors for coefficients (simple example)
-            beta0 = pm.Normal('beta0', mu=0.0, sigma=10.0)
-            beta_rho0 = pm.Normal('beta_rho0', mu=self.params['rho0'], sigma=self.params['beta_prior_sd'])
-            beta_rings = pm.Normal('beta_rings', mu=self.params['rho_rings'], sigma=self.params['beta_prior_sd'])
-            beta_stems = pm.Normal('beta_stems', mu=self.params['rho_stems'], sigma=self.params['beta_prior_sd'])
-
-            # moisture and fraction uncertainties
-            moisture = pm.Beta('moisture', alpha=2, beta=2)
-            N_frac = pm.Beta('N_frac', alpha=2, beta=200)  # small N fraction
-            C_base = pm.Normal('C_base', mu=self.params['C_base'], sigma=0.05)
-            C_N_coeff = pm.Normal('C_N_coeff', mu=self.params['C_N_coeff'], sigma=1.0)
-
-            # compute effective diameter and volume inside pytensor
-            if H is not None and W is not None:
-                diam_t = 0.5 * (tt.as_tensor_variable(H) + tt.as_tensor_variable(W)) * 2.0 / 2.0
-            elif H is not None:
-                diam_t = tt.as_tensor_variable(H)
-            elif W is not None:
-                diam_t = tt.as_tensor_variable(W)
+            # ----------------- Priors for mechanistic coefficients -----------------
+            beta_rho0 = fixed_params.get('rho0', pm.Normal('beta_rho0', mu=self.params['rho0'], sigma=self.params['beta_prior_sd']))
+            beta_rings = fixed_params.get('rho_rings', pm.Normal('beta_rings', mu=self.params['rho_rings'], sigma=self.params['beta_prior_sd']))
+            beta_stems = fixed_params.get('rho_stems', pm.Normal('beta_stems', mu=self.params['rho_stems'], sigma=self.params['beta_prior_sd']))
+            C_base = fixed_params.get('C_base', pm.Normal('C_base', mu=self.params['C_base'], sigma=0.05))
+            C_N_coeff = fixed_params.get('C_N_coeff', pm.Normal('C_N_coeff', mu=self.params['C_N_coeff'], sigma=1.0))
+            moisture = fixed_params.get('moisture_mean', pm.Beta('moisture', alpha=2, beta=2))
+            N_frac = fixed_params.get('N_frac_mean', pm.Beta('N_frac', alpha=2, beta=200))
+    
+            # ----------------- Observed inputs (with missing support) -----------------
+            def obs_normal(name, arr):
+                mu = float(np.nanmean(arr)) if np.isfinite(np.nanmean(arr)) else 0.0
+                sigma = float(np.nanstd(arr)) if np.isfinite(np.nanstd(arr)) and np.nanstd(arr) > 0 else max(1.0, abs(mu)*0.5)
+                return pm.Normal(name, mu=mu, sigma=sigma, observed=arr)
+    
+            H_rv = obs_normal('H_obs', H_arr) if not np.all(np.isnan(H_arr)) else None
+            W_rv = obs_normal('W_obs', W_arr) if not np.all(np.isnan(W_arr)) else None
+            rings_rv = obs_normal('rings_obs', rings_arr) if not np.all(np.isnan(rings_arr)) else None
+            stems_rv = obs_normal('stems_obs', stems_arr) if not np.all(np.isnan(stems_arr)) else None
+            footprints_rv = obs_normal('fp_obs', footprints_arr) if not np.all(np.isnan(footprints_arr)) else None
+    
+            # ----------------- Diameter & Volume -----------------
+            if H_rv is not None and W_rv is not None:
+                diam_t = 0.5 * (tt.as_tensor_variable(H_rv) + tt.as_tensor_variable(W_rv))
+            elif H_rv is not None:
+                diam_t = tt.as_tensor_variable(H_rv)
+            elif W_rv is not None:
+                diam_t = tt.as_tensor_variable(W_rv)
             else:
-                diam_t = None
-
-            if diam_t is not None:
-                vol_t = (4.0 / 3.0) * tt.pi * (diam_t / 2.0) ** 3
-            else:
-                vol_t = None
-
-            # density
-            if rings is not None or stems is not None:
-                r_t = tt.as_tensor_variable(rings) if rings is not None else 0.0
-                s_t = tt.as_tensor_variable(stems) if stems is not None else 0.0
-                density_t = beta_rho0 + beta_rings * r_t + beta_stems * s_t
-            else:
-                # if no predictors, put a weak prior for density
-                density_t = pm.Normal('density_unobs', mu=self.params['rho0'], sigma=50.0)
-
-            # wet biomass
-            if vol_t is not None:
-                wet_t = vol_t * density_t * (footprints if footprints is not None else self.params.get('footprint_multiplier', 1.0))
-            else:
-                wet_t = pm.Normal('wet_unobs', mu=1.0, sigma=1.0)
-
-            # dry and nitrogen
-            dry_t = wet_t * (1.0 - moisture)
-            N_mass_t = dry_t * N_frac
-
-            # carbon
-            nfrac_t = tt.switch(tt.eq(dry_t, 0), 0.0, N_mass_t / dry_t)
-            cfrac_t = C_base + C_N_coeff * nfrac_t
-            C_t = dry_t * cfrac_t
-
-            # likelihood for observed carbon (if provided)
-            sigma_obs = pm.HalfNormal('sigma_obs', sigma=1.0)
-            if observed_C is not None:
-                pm.Normal('obs', mu=C_t, sigma=sigma_obs, observed=observed_C)
-
+                raise ValueError('At least one of heights or widths must be supplied.')
+    
+            vol_t = (4.0/3.0) * tt.pi * (diam_t/2.0)**3
+    
+            # ----------------- Density (strictly positive) -----------------
+            r_t = tt.as_tensor_variable(rings_rv) if rings_rv is not None else tt.zeros(n)
+            s_t = tt.as_tensor_variable(stems_rv) if stems_rv is not None else tt.zeros(n)
+            density_mu = beta_rho0 + beta_rings * r_t + beta_stems * s_t
+            density_t = pm.Lognormal('density', mu=tt.log(density_mu), sigma=0.2, shape=n)
+    
+            # ----------------- Wet & Dry Biomass -----------------
+            fp_val = tt.as_tensor_variable(footprints_rv) if footprints_rv is not None else float(self.params.get('footprint_multiplier', 1.0))
+            wet_t = vol_t * density_t * fp_val
+            dry_t = wet_t * (1.0 - (moisture if isinstance(moisture, (int,float)) else tt.as_tensor_variable(moisture)))
+    
+            # ----------------- Nitrogen -----------------
+            N_mass_t = dry_t * (N_frac if isinstance(N_frac, (int,float)) else tt.as_tensor_variable(N_frac))
+            nfrac_t = tt.switch(tt.eq(dry_t, 0), 0.0, N_mass_t/dry_t)
+    
+            # ----------------- Carbon fraction -----------------
+            C_frac_t = (C_base if isinstance(C_base,(int,float)) else C_base) + \
+                       (C_N_coeff if isinstance(C_N_coeff,(int,float)) else C_N_coeff) * nfrac_t
+            # clip to physically meaningful range
+            C_frac_t = tt.clip(C_frac_t, 0.01, 0.99)
+            C_t = dry_t * C_frac_t
+    
+            # ----------------- Likelihood: Observed carbon (truncated >=0) -----------------
+            sigma_obs = pm.HalfNormal('sigma_obs', sigma=5.0)
+            
+            pm.Lognormal('carbon_obs', mu=tt.log(C_t), sigma=sigma_obs, observed=C_arr)
+    
         return model
-
-
 # End of file
 

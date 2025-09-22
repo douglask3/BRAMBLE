@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 
 import numpy  as np
 import pandas as pd
+import arviz as az
 import seaborn as sns
 
 import math
@@ -75,13 +76,68 @@ def train_pymc(df, Y_varnameX_varnames = ['height', 'diameter'], catogory = 'spe
 if __name__ == "__main__":
 
     
-    file = 'data/SH_allometry_2023.csv'
-    df_measurements = pd.read_csv(file)
-    df_measurements['height'] = df_measurements[['h1', 'h2', 'h3']].mean(axis=1)
-    df_measurements['h_std'] = df_measurements[['h1', 'h2', 'h3']].std(axis=1)
-    df_measurements['diameter'] = df_measurements[['d1', 'd2', 'd3']].mean(axis=1)
-    df_measurements['d_std'] = df_measurements[['d1', 'd2', 'd3']].std(axis=1)
+    file = 'data/shrewberry_hill.csv'
+    #file = 'data/
+    df = pd.read_csv(file)
+
+    model = BRAMBLE(params={}, inference=True)
     
-    df_measurements['Y_fake'] = fake_data_simulator(df_measurements)
+    data = {
+        'heights': df['height mean'].to_numpy()/100.0,      # can contain np.nan
+        'widths': df['diameter mean (field measurement'].to_numpy()/100.0,        # can contain np.nan
+        #'rings': df['Tree rings'].to_numpy(),
+        'carbon_mass': df['total shrub  Carbon estimate (kg)'].to_numpy()  
+            # must be provided (np.nan ok for some rows)
+    }
+    
+    bramble = BRAMBLE(params={}, inference=True)
+    pymc_model = bramble.build_pymc_model(data)
+
+    # sample
+    with pymc_model:
+        trace = pm.sample(
+            draws=400, tune=400,
+            target_accept=0.9,
+            chains=2)
+        ppc = pm.sample_posterior_predictive(trace, var_names=["carbon_obs"])
+    az.to_netcdf(trace, "bramble_trace.nc") 
 
 
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Suppose df['carbon mass'] holds observed values (with NaN for missing)
+    observed = data['carbon_mass']
+    
+    # Posterior predictive draws for carbon
+    # Shape: (n_draws, n_obs)
+    
+    y_pred = ppc.posterior_predictive["carbon_obs"].values.T
+    
+    y_pred = y_pred.reshape(y_pred.shape[0], -1)
+    # Mask rows with missing observed carbon
+    mask = ~np.isnan(observed)
+    obs = observed[mask]
+    
+    pred = y_pred[mask, :]   # shape (n_draws, n_masked_obs)
+    
+    # Plot
+    plt.figure(figsize=(6,6))
+    #set_trace()
+    plt.scatter(obs, pred.mean(axis=1), alpha=0.6, label="Posterior mean prediction")
+    
+    # Add uncertainty: 5–95% intervals for each obs
+    low, high = np.percentile(pred, [5, 95], axis=1)
+    plt.errorbar(obs, pred.mean(axis=1),
+                 yerr=[pred.mean(axis=1)-low, high-pred.mean(axis=1)],
+                 fmt="o", color="tab:blue", alpha=0.4)
+    
+    # 1:1 line
+    #lims = [min(obs.min(), pred.mean(axis=1).min()), max(obs.max(), pred.mean(axis=1).max())]
+    #plt.plot(lims, lims, "k--", alpha=0.7)
+    
+    plt.xlabel("Observed carbon mass")
+    plt.ylabel("Predicted carbon mass")
+    plt.legend()
+    plt.title("Observed vs Posterior Predictive Carbon")
+    plt.show()
