@@ -2,6 +2,7 @@
 
 Reusable version of Bayesian Relationships in Allometric Models of Biomass with Laplace and Entropy.
 
+This is a fork of an early work-in-progress. Please look back for updates or visit the original project
 
 ## Get started
 
