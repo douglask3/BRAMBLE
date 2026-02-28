@@ -1,0 +1,17 @@
+name: BRAMBLE
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - pymc
+  - arviz
+  - iris
+  - cartopy
+  - geopandas
+  - pytensor
+  - scikit-learn
+  - seaborn
