@@ -35,7 +35,9 @@ Follow these steps to install the necessary software and dependencies:
     ```
 
 ## Driving Data
-The driving data required for the models are listed [here](https://github.com/douglask3/Bayesian_fire_models/blob/main/README/Datasets). Once you have downloaded the dataset you want, save it to the `data/data/driving_data/` directory within the project folder or update the path in the corresponding configuration file (see below) to its location.
+We will have more standard driving data later, and adpat the model to take in more different types of data soon. For now, example driving data is in the the csv [`data/SH_allometry_2023.csv`](https://github.com/douglask3/BRAMBLE/blob/moduleise/data/SH_allometry_2023.csv).
+
+If you want to make or provide your own, 
 
 ## Configuration Settings
 Configuration settings can be found in the text files in `namelists\` dir. [namelists/nrt-evaluation.txt](https://github.com/douglask3/Bayesian_fire_models/blob/main/namelists/Pantanal_example.txt) is quite a good simple example that works for [ConFLAME](https://github.com/douglask3/Bayesian_fire_models/blob/main/README/ConFLAME.md). There are some model speific parameters, so you'll have to check specific under [Model Setup](#model-setup). But this is common to all models.
