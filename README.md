@@ -1,4 +1,4 @@
-# Bayesian-based fire models
+# BRAMBLE
 
 ## Table of Contents
 - [Introduction](#introduction)
@@ -20,21 +20,21 @@ Follow these steps to install the necessary software and dependencies:
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/douglask3/Bayesian_fire_models.git
+    git clone https://github.com/douglask3/BRAMBLE.git
     ```
-    or download the latest version from Zenodo: xxxxxxx
+    or soon you will be able to download the latest version from Zenodo : xxxxxxx
 3. Navigate into the project directory:
     ```bash
-    cd Bayesian_fire_models
+    cd BRAMBLE
     ```
 4. Install the required packages:
     
     ```bash
     conda env create -f environment.yml
-    conda activate bayesian-fire-models
+    conda activate BRAMBLE
     ```
 
-## Obtaining Driving Data
+## Driving Data
 The driving data required for the models are listed [here](https://github.com/douglask3/Bayesian_fire_models/blob/main/README/Datasets). Once you have downloaded the dataset you want, save it to the `data/data/driving_data/` directory within the project folder or update the path in the corresponding configuration file (see below) to its location.
 
 ## Configuration Settings
