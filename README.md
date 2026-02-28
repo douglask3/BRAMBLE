@@ -1,4 +1,4 @@
-# BRAMBLE
+# BRAMBLE – Bayesian Relationships in Allometric Models of Biomass with Laplace and Entropy.
 
 Reusable version of Bayesian Relationships in Allometric Models of Biomass with Laplace and Entropy.
 
