@@ -3,21 +3,25 @@
 
 # Quick Start:
 
-In command line:
+**In command line**:
+Install and activate libraries:
 ```
 uv venv
 source .venv/bin/activate
-```
-```
 uv sync
 ```
+
+Download model:
 ```
 pip install git+https://github.com/MAMBO-Horizon-WP4/BRAMBLE.git
 ```
+
+Run notebook:
 ```
 cd BRAMBLE
 jupyter notebook development_notebook.ipynb
 ```
+All other instructions are here. See below for more deatil:
 
 Reusable version of Bayesian Relationships in Allometric Models of Biomass with Laplace and Entropy.
 
